@@ -25,6 +25,7 @@
         button:hover { filter: brightness(1.2); }
         #pauseBtn { background: #34495e; }
         #harvestBtn { background: #27ae60; display: none; animation: pulse 1.5s infinite; }
+        #heaterBtn { background: #e67e22; }
         
         #tooltip { 
             position: absolute; background: rgba(10, 20, 20, 0.95); color: #e0f7fa; 
@@ -46,6 +47,7 @@
             <div style="display: flex; gap: 10px; align-items: center;">
                 <button id="pauseBtn">⏸ Pause Irrigation</button>
                 <button id="harvestBtn">🌿 Harvest Gourmet Crops</button>
+                <button id="heaterBtn">🔥 Heater: OFF</button>
                 <div class="stats">
                     TEMP: <span id="tempLabel">42</span>°C 
                     <span class="uae-badge">UAE CLIMATE</span>
@@ -67,10 +69,11 @@
     const tooltip = document.getElementById('tooltip');
     const pauseBtn = document.getElementById('pauseBtn');
     const harvestBtn = document.getElementById('harvestBtn');
+    const heaterBtn = document.getElementById('heaterBtn');
 
     const simBase = 530; 
     const recoveryBed = { x: 280, y: 360, w: 260, h: simBase - 360 }; 
-    const glass = { startX: 280, startY: 190, endX: 540, endY: 260 }; // Condensation slope
+    const glass = { startX: 280, startY: 190, endX: 540, endY: 260 }; 
     const collector = { x: 540, y: 260, w: 70, h: 110, level: 25 };
     const soilBed = { x: 720, y: 430, w: 300, h: simBase - 430 }; 
     const solarPanel = { x: 70, y: 250, w: 130, h: 50 };
@@ -78,6 +81,7 @@
     let waterDrops = [];
     let evaporationParticles = [];
     let irrigationActive = true;
+    let heaterActive = false;
     let plantGrowth = 0;
     let totalHarvests = 0;
     let solarBattery = 15;
@@ -114,37 +118,37 @@
         pauseBtn.style.background = irrigationActive ? "#34495e" : "#e67e22";
     };
 
+    heaterBtn.onclick = () => {
+        heaterActive = !heaterActive;
+        heaterBtn.innerText = heaterActive ? "🔥 Heater: ON" : "🔥 Heater: OFF";
+        heaterBtn.style.background = heaterActive ? "#ef4444" : "#e67e22";
+    };
+
     harvestBtn.onclick = () => {
         plantGrowth = 0; totalHarvests++;
         harvestBtn.style.display = "none";
     };
 
     function drawSystemBase(x, y, w, h, ratio, isRecovery) {
-        // Correct Gradual Restoration Logic Reinstated
-        let r = 210 - (ratio * (210 - 78)); // Target brown R: 78
-        let g = 180 - (ratio * (180 - 52)); // Target brown G: 52
-        let b = 140 - (ratio * (140 - 46)); // Target brown B: 46
-        
+        let r = 210 - (ratio * (210 - 78)); 
+        let g = 180 - (ratio * (180 - 52)); 
+        let b = 140 - (ratio * (140 - 46)); 
         ctx.save();
         ctx.fillStyle = `rgb(${r},${g},${b})`;
         ctx.shadowBlur = 10; ctx.shadowColor = 'rgba(0,0,0,0.3)';
-        
         ctx.beginPath();
-        // Ground sits flat on base
         ctx.moveTo(x, simBase); 
-        ctx.lineTo(x, y); // Straight up
-        ctx.quadraticCurveTo(x + w/2, y-15, x + w, y); // Keep soft top for ref images
+        ctx.lineTo(x, y); 
+        ctx.quadraticCurveTo(x + w/2, y-15, x + w, y); 
         ctx.lineTo(x+w, simBase);
         ctx.closePath(); ctx.fill();
         ctx.restore();
-
-        // Texturing (Salt specks disappear as ground heals)
         if (isRecovery && ratio < 0.95) {
             ctx.fillStyle = `rgba(100, 70, 40, ${0.4 - ratio*0.3})`;
             for(let i=0; i<60; i++) {
                 ctx.beginPath(); ctx.arc(x + (i*17)%w, y + 5 + (i*19)%h, 1.2, 0, Math.PI*2); ctx.fill();
             }
-            ctx.fillStyle = "rgba(255,255,255," + (0.5 - ratio*0.4) + ")"; // Salt gradually fades
+            ctx.fillStyle = "rgba(255,255,255," + (0.5 - ratio*0.4) + ")"; 
             for(let i=0; i<30; i++) {
                 ctx.beginPath(); ctx.arc(recoveryBed.x + (i*9)%recoveryBed.w, recoveryBed.y + 10 + (i*11)%recoveryBed.h, 1.8, 0, Math.PI*2); ctx.fill();
             }
@@ -175,12 +179,10 @@
     }
 
     function drawSolar(x, y, intensity) {
-        // Subtle connection
         ctx.strokeStyle = "rgba(184, 84, 27, 0.4)"; ctx.lineWidth = 2;
         ctx.beginPath(); ctx.moveTo(x + 65, y + 40); 
         ctx.bezierCurveTo(x + 65, y + 120, recoveryBed.x - 30, recoveryBed.y + 120, recoveryBed.x, recoveryBed.y + 60);
         ctx.stroke();
-
         ctx.fillStyle = "#37474F"; ctx.fillRect(x + 60, y + 20, 10, 50);
         ctx.save();
         ctx.translate(x + 65, y + 20);
@@ -189,8 +191,6 @@
         ctx.strokeStyle = "#455A64"; ctx.lineWidth = 1;
         for(let i=-65; i<=65; i+=22) { ctx.beginPath(); ctx.moveTo(i, -15); ctx.lineTo(i, 20); ctx.stroke(); }
         ctx.restore();
-        
-        // A structured Tripod base
         ctx.strokeStyle = "#455A64"; ctx.lineWidth = 4;
         ctx.beginPath(); ctx.moveTo(x + 65, y + 70); ctx.lineTo(x + 30, simBase); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(x + 65, y + 70); ctx.lineTo(x + 100, simBase); ctx.stroke();
@@ -199,8 +199,6 @@
 
     function drawEnclosedGlassHouse() {
         ctx.save();
-        
-        // Back Wall Glass (higher opacity to defined structure)
         ctx.fillStyle = "rgba(255, 255, 255, 0.12)";
         ctx.beginPath();
         ctx.moveTo(glass.startX, simBase);
@@ -208,25 +206,17 @@
         ctx.lineTo(glass.endX, glass.endY);
         ctx.lineTo(glass.endX, simBase);
         ctx.closePath(); ctx.fill();
-
-        // Right Side Wall (defines depth)
         ctx.fillStyle = "rgba(255, 255, 255, 0.08)";
         ctx.beginPath();
         ctx.moveTo(glass.endX, simBase);
         ctx.lineTo(glass.endX, glass.endY);
-        // angled depth to collector
         ctx.quadraticCurveTo(glass.endX + 30, glass.endY + 15, collector.x + collector.w, collector.y); 
         ctx.lineTo(collector.x + collector.w, simBase);
         ctx.closePath(); ctx.fill();
-
-        // Main Front Condensation Slope (as requested visible)
         ctx.beginPath(); ctx.moveTo(glass.startX, glass.startY); ctx.lineTo(glass.endX, glass.endY);
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)'; ctx.lineWidth = 8; ctx.lineCap = "round"; ctx.stroke();
-        
-        // Front Vertical Edge
         ctx.beginPath(); ctx.moveTo(glass.startX, glass.startY); ctx.lineTo(glass.startX, simBase);
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)'; ctx.lineWidth = 2; ctx.stroke();
-
         ctx.restore();
     }
 
@@ -240,26 +230,21 @@
         document.getElementById('tempLabel').innerText = Math.round(temp);
 
         if (isDay) solarBattery = Math.min(100, solarBattery + (intensity * 0.07));
-        else if (solarBattery > 0 && collector.level < 40) solarBattery -= 0.02; 
+        else if (heaterActive && solarBattery > 0) solarBattery -= 0.05; 
         document.getElementById('batteryLabel').innerText = Math.floor(solarBattery);
 
-        // SKY: soft Blue-Green Oasis tone
         ctx.fillStyle = isDay ? '#D6EAF8' : '#0B132B';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // Draw Frame Base (坐)
         ctx.fillStyle = "#2c3e50";
         ctx.fillRect(0, simBase, canvas.width, canvas.height - simBase);
 
-        // SUN logic restricted to frame top
         let orbitAngle = ((totalMinutes - 720) / 720) * (Math.PI / 2);
         let sunOrbitRad = 450;
         let sunX = 550 + Math.sin(orbitAngle) * sunOrbitRad;
         let sunY = simBase - 250 - Math.cos(orbitAngle) * sunOrbitRad; 
-        sunY = Math.max(100, sunY); // Prevent collision with base
+        sunY = Math.max(100, sunY); 
 
         if (isDay) {
-            // Reverted Sun Rays
             ctx.strokeStyle = "rgba(255, 193, 7, " + (intensity * 0.4) + ")"; ctx.lineWidth = 3;
             for(let i=0; i<8; i++) {
                 let ang = (i/8)*Math.PI*2;
@@ -272,10 +257,7 @@
         }
 
         let recoveryProgress = Math.min(1, totalHarvests / 5); 
-        // Draw Ground and Restoration
         drawSystemBase(recoveryBed.x, recoveryBed.y, recoveryBed.w, recoveryBed.h, recoveryProgress, true);
-        
-        // Draw Proper Enclosed Glass House
         drawEnclosedGlassHouse();
 
         ctx.fillStyle = '#5D4037'; ctx.fillRect(collector.x, collector.y, collector.w, collector.h);
@@ -283,16 +265,12 @@
         let waterH = (collector.level / 100) * (collector.h - 15);
         ctx.fillRect(collector.x + 8, (collector.y + collector.h - 8) - waterH, collector.w - 16, waterH);
 
-        // Draw Soil Bed (Permanent rich brown)
         drawSystemBase(soilBed.x, soilBed.y, soilBed.w, soilBed.h, 1, false);
-        
         drawSolar(solarPanel.x, solarPanel.y, intensity);
 
-        // Redraw plants using curvy functions
         for(let i=0; i<5; i++) drawHalophyte(recoveryBed.x + 45 + (i*42), recoveryBed.y + 18, recoveryProgress);
         for(let i=0; i<6; i++) drawPlant(soilBed.x + 45 + (i*42), soilBed.y + 18, plantGrowth);
 
-        // UI Panel in-canvas
         ctx.fillStyle = 'rgba(255, 255, 255, 0.95)'; ctx.fillRect(820, 20, 260, 160);
         ctx.strokeStyle = '#16a085'; ctx.lineWidth = 2; ctx.strokeRect(820, 20, 260, 160);
         ctx.fillStyle = '#263238'; ctx.font = 'bold 15px "Times New Roman"';
@@ -301,13 +279,20 @@
         ctx.fillText(`Soil Desalination: ${(recoveryProgress*100).toFixed(0)}%`, 835, 75);
         ctx.fillText(`Solar Buffer: ${Math.floor(solarBattery)}%`, 835, 95);
         ctx.fillText(`Gourmet Harvests: ${totalHarvests}`, 835, 115);
-        ctx.fillText(`Thermal State: ${((intensity > 0.1 || solarBattery > 25) ? "Optimal" : "Conserving")}`, 835, 135);
+        ctx.fillText(`Thermal State: ${((intensity > 0.1 || (heaterActive && solarBattery > 0)) ? "Optimal" : "Conserving")}`, 835, 135);
         ctx.fillStyle = '#16a085';
         ctx.fillText(`Oasis Status: ${recoveryProgress > 0.8 ? 'RESTORED' : 'ACTIVE'}`, 835, 155);
 
-        if ((intensity > 0.1 || solarBattery > 20) && Math.random() < 0.15) {
-            evaporationParticles.push({ x: recoveryBed.x + 20 + Math.random()*(recoveryBed.w-40), y: recoveryBed.y, life: 1 });
+        // EVAPORATION & DROP LOGIC
+        if (intensity > 0.1 || (heaterActive && solarBattery > 0)) {
+            if (Math.random() < 0.15) {
+                evaporationParticles.push({ x: recoveryBed.x + 20 + Math.random()*(recoveryBed.w-40), y: recoveryBed.y, life: 1 });
+            }
+            if (Math.random() < 0.06) {
+                waterDrops.push({ x: glass.startX + 15, y: glass.startY + 8, state: 'sliding' });
+            }
         }
+
         evaporationParticles.forEach((p, i) => {
             p.y -= 1.2; p.life -= 0.008;
             ctx.fillStyle = `rgba(255,255,255,${p.life * 0.6})`;
@@ -315,17 +300,9 @@
             if(p.life <= 0) evaporationParticles.splice(i, 1);
         });
 
-        if ((intensity > 0.1 || solarBattery > 20)) {
-        if (Math.random() < 0.15) {
-        evaporationParticles.push({ x: recoveryBed.x + 20 + Math.random()*(recoveryBed.w-40), y: recoveryBed.y, life: 1 });
-        }
-        if (Math.random() < 0.06) {
-        waterDrops.push({ x: glass.startX + 15, y: glass.startY + 8, state: 'sliding' });
-            }
-        }
         waterDrops.forEach((d, i) => {
-            if (d.state === 'sliding') { d.x += 2.2; d.y += 0.6; if (d.x >= glass.endX - 10) d.state = 'falling'; }
-            else { d.y += 5.5; if (d.y >= collector.y + collector.h - 12) { collector.level = Math.min(100, collector.level + 0.85); waterDrops.splice(i, 1); } }
+            if (d.state === 'sliding') { d.x += 1.2; d.y += 0.3; if (d.x >= glass.endX - 10) d.state = 'falling'; }
+            else { d.y += 3.5; if (d.y >= collector.y + collector.h - 12) { collector.level = Math.min(100, collector.level + 0.85); waterDrops.splice(i, 1); } }
             ctx.fillStyle = '#03A9F4'; ctx.beginPath(); ctx.arc(d.x, d.y, 3.5, 0, Math.PI*2); ctx.fill();
         });
 
