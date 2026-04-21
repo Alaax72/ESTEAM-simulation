@@ -302,8 +302,8 @@
 
         waterDrops.forEach((d, i) => {
             if (d.state === 'sliding') { d.x += 4.5; d.y += 1.2; if (d.x >= glass.endX - 10) d.state = 'falling'; }
-            else { d.y += 3.5; if (d.y >= collector.y + collector.h - 12) { collector.level = Math.min(100, collector.level + 0.85); waterDrops.splice(i, 1); } }
-            ctx.fillStyle = '#03A9F4'; ctx.beginPath(); ctx.arc(d.x, d.y, 3.5, 0, Math.PI*2); ctx.fill();
+            else { d.y += 1.0; if (d.y >= collector.y + collector.h - 12) { collector.level = Math.min(100, collector.level + 0.5); waterDrops.splice(i, 1); } }
+            ctx.fillStyle = '#03A9F4'; ctx.beginPath(); ctx.arc(d.x, d.y, 0.5, 0, Math.PI*2); ctx.fill();
         });
 
         if (irrigationActive && collector.level > 5 && plantGrowth < 100) {
