@@ -324,6 +324,20 @@
             }
         }
 
+        // 2. ANIMATE EXISTING PARTICLES (Always runs to clear what's already in the air)
+        evaporationParticles.forEach((p, i) => {
+            p.y -= 1.2; p.life -= 0.008;
+            ctx.fillStyle = `rgba(255,255,255,${p.life * 0.6})`;
+            ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI*2); ctx.fill();
+            if(p.life <= 0) evaporationParticles.splice(i, 1);
+        });
+
+        waterDrops.forEach((d, i) => {
+            if (d.state === 'sliding') { d.x += 2.2; d.y += 0.6; if (d.x >= glass.endX - 10) d.state = 'falling'; }
+            else { d.y += 5.5; if (d.y >= collector.y + collector.h - 12) { collector.level = Math.min(100, collector.level + 0.85); waterDrops.splice(i, 1); } }
+            ctx.fillStyle = '#03A9F4'; ctx.beginPath(); ctx.arc(d.x, d.y, 3.5, 0, Math.PI*2); ctx.fill();
+        });
+
         if ((intensity > 0.1 || solarBattery > 20)) {
         if (Math.random() < 0.15) {
         evaporationParticles.push({ x: recoveryBed.x + 20 + Math.random()*(recoveryBed.w-40), y: recoveryBed.y, life: 1 });
