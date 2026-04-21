@@ -321,15 +321,10 @@
             }
         }
 
-        // --- 2. UPDATE THE DIAGNOSTICS TEXT ---
-        // Change your "Thermal State" line to show the Heater status
+        // --- UI Panel
         ctx.fillStyle = '#263238';
-        ctx.fillText(`Heater Mode: ${heaterActive ? "ON (Manual)" : "OFF"}`, 835, 135);
-
-        // --- 3. UI Panel in-canvas (The code you already have) ---
+        ctx.fillText(`Heater Mode: ${heaterActive ? "ON (Manual)" : "OFF"}`, 835, 135);--
         ctx.fillStyle = 'rgba(255, 255, 255, 0.95)'; ctx.fillRect(820, 20, 260, 160);
-        // ... rest of your UI code ...
-        // UI Panel in-canvas
         ctx.fillStyle = 'rgba(255, 255, 255, 0.95)'; ctx.fillRect(820, 20, 260, 160);
         ctx.strokeStyle = '#16a085'; ctx.lineWidth = 2; ctx.strokeRect(820, 20, 260, 160);
         ctx.fillStyle = '#263238'; ctx.font = 'bold 15px "Times New Roman"';
