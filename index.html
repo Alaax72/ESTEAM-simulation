@@ -323,13 +323,14 @@
             if(p.life <= 0) evaporationParticles.splice(i, 1);
         });
 
-        // --- 3. ANIMATE WATER DROPS ---
+        // --- 3. ANIMATE WATER DROPS (Slower Version) ---
         waterDrops.forEach((d, i) => {
             if (d.state === 'sliding') { 
-                d.x += 2.2; d.y += 0.6; 
+                d.x += 1.2; // Reduced from 2.2 (Slower slide)
+                d.y += 0.3; // Reduced from 0.6 (Shallower angle)
                 if (d.x >= glass.endX - 10) d.state = 'falling'; 
             } else { 
-                d.y += 5.5; 
+                d.y += 3.5; // Reduced from 5.5 (Slower fall)
                 if (d.y >= collector.y + collector.h - 12) { 
                     collector.level = Math.min(100, collector.level + 0.85); 
                     waterDrops.splice(i, 1); 
