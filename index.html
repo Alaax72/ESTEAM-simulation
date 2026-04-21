@@ -81,6 +81,7 @@
     let plantGrowth = 0;
     let totalHarvests = 0;
     let solarBattery = 15;
+    let heaterActive = false; // Starts OFF
 
     const hotspots = [
         { x: 280, y: 360, w: 260, h: 120, label: "<b>Degraded Bed (Healing):</b> Halophytes pull salt out of this flat sandy ground. Notice how it gradually turns rich brown as the simulation heals!" },
@@ -117,6 +118,15 @@
     harvestBtn.onclick = () => {
         plantGrowth = 0; totalHarvests++;
         harvestBtn.style.display = "none";
+    };
+    // 1. First, define the button variable at the top of your script (near pauseBtn/harvestBtn)
+    const heaterBtn = document.getElementById('heaterBtn');
+
+    // 2. Add the click logic here
+    heaterBtn.onclick = () => {
+        heaterActive = !heaterActive;
+        heaterBtn.innerText = heaterActive ? "🔥 Heater: ON" : "🔥 Heater: OFF";
+        heaterBtn.style.background = heaterActive ? "#ef4444" : "#e67e22";
     };
 
     function drawSystemBase(x, y, w, h, ratio, isRecovery) {
@@ -292,6 +302,33 @@
         for(let i=0; i<5; i++) drawHalophyte(recoveryBed.x + 45 + (i*42), recoveryBed.y + 18, recoveryProgress);
         for(let i=0; i<6; i++) drawPlant(soilBed.x + 45 + (i*42), soilBed.y + 18, plantGrowth);
 
+        // --- 1. THE SYSTEM BRAIN (Insert here) ---
+        // Decide if we should evaporate based on Sun OR Manual Heater
+        let isPoweringHeater = (intensity > 0.1) || (heaterActive && solarBattery > 0);
+
+        if (isPoweringHeater) {
+            // Drain battery ONLY if it's night and the heater is ON
+            if (intensity <= 0.1 && heaterActive) {
+                solarBattery = Math.max(0, solarBattery - 0.05); 
+            }
+
+            // Create Steam & Water
+            if (Math.random() < 0.15) {
+                evaporationParticles.push({ x: recoveryBed.x + 20 + Math.random()*(recoveryBed.w-40), y: recoveryBed.y, life: 1 });
+            }
+            if (Math.random() < 0.06) {
+                waterDrops.push({ x: glass.startX + 15, y: glass.startY + 8, state: 'sliding' });
+            }
+        }
+
+        // --- 2. UPDATE THE DIAGNOSTICS TEXT ---
+        // Change your "Thermal State" line to show the Heater status
+        ctx.fillStyle = '#263238';
+        ctx.fillText(`Heater Mode: ${heaterActive ? "ON (Manual)" : "OFF"}`, 835, 135);
+
+        // --- 3. UI Panel in-canvas (The code you already have) ---
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.95)'; ctx.fillRect(820, 20, 260, 160);
+        // ... rest of your UI code ...
         // UI Panel in-canvas
         ctx.fillStyle = 'rgba(255, 255, 255, 0.95)'; ctx.fillRect(820, 20, 260, 160);
         ctx.strokeStyle = '#16a085'; ctx.lineWidth = 2; ctx.strokeRect(820, 20, 260, 160);
