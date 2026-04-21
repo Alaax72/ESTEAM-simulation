@@ -315,7 +315,7 @@
             if(p.life <= 0) evaporationParticles.splice(i, 1);
         });
 
-        if ((intensity > 0.1 || solarBattery > 20) && Math.random() < 0.06) {
+        if (**(intensity > 0.1 || solarBattery > 20) &&** Math.random() < 0.15) {
             waterDrops.push({ x: glass.startX + 15, y: glass.startY + 8, state: 'sliding' });
         }
         waterDrops.forEach((d, i) => {
