@@ -285,10 +285,10 @@
 
         // EVAPORATION & DROP LOGIC
         if (intensity > 0.1 || (heaterActive && solarBattery > 0)) {
-            if (Math.random() < 0.15) {
+            if (Math.random() < 0.40) {
                 evaporationParticles.push({ x: recoveryBed.x + 20 + Math.random()*(recoveryBed.w-40), y: recoveryBed.y, life: 1 });
             }
-            if (Math.random() < 0.06) {
+            if (Math.random() < 0.25) {
                 waterDrops.push({ x: glass.startX + 15, y: glass.startY + 8, state: 'sliding' });
             }
         }
