@@ -301,7 +301,7 @@
         });
 
         waterDrops.forEach((d, i) => {
-            if (d.state === 'sliding') { d.x += 1.0; d.y += 1.0; if (d.x >= glass.endX - 10) d.state = 'falling'; }
+            if (d.state === 'sliding') { d.x += 3.5; d.y += 0; if (d.x >= glass.endX - 10) d.state = 'falling'; }
             else { d.y += 1.0; if (d.y >= collector.y + collector.h - 12) { collector.level = Math.min(100, collector.level + 0.5); waterDrops.splice(i, 1); } }
             ctx.fillStyle = '#03A9F4'; ctx.beginPath(); ctx.arc(d.x, d.y, 3.5, 0, Math.PI*2); ctx.fill();
         });
