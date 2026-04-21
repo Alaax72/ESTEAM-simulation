@@ -81,7 +81,6 @@
     let plantGrowth = 0;
     let totalHarvests = 0;
     let solarBattery = 15;
-    let heaterActive = false; // Starts OFF
 
     const hotspots = [
         { x: 280, y: 360, w: 260, h: 120, label: "<b>Degraded Bed (Healing):</b> Halophytes pull salt out of this flat sandy ground. Notice how it gradually turns rich brown as the simulation heals!" },
@@ -118,15 +117,6 @@
     harvestBtn.onclick = () => {
         plantGrowth = 0; totalHarvests++;
         harvestBtn.style.display = "none";
-    };
-    // 1. First, define the button variable at the top of your script (near pauseBtn/harvestBtn)
-    const heaterBtn = document.getElementById('heaterBtn');
-
-    // 2. Add the click logic here
-    heaterBtn.onclick = () => {
-        heaterActive = !heaterActive;
-        heaterBtn.innerText = heaterActive ? "🔥 Heater: ON" : "🔥 Heater: OFF";
-        heaterBtn.style.background = heaterActive ? "#ef4444" : "#e67e22";
     };
 
     function drawSystemBase(x, y, w, h, ratio, isRecovery) {
@@ -302,29 +292,7 @@
         for(let i=0; i<5; i++) drawHalophyte(recoveryBed.x + 45 + (i*42), recoveryBed.y + 18, recoveryProgress);
         for(let i=0; i<6; i++) drawPlant(soilBed.x + 45 + (i*42), soilBed.y + 18, plantGrowth);
 
-        // --- 1. THE SYSTEM BRAIN (Insert here) ---
-        // Decide if we should evaporate based on Sun OR Manual Heater
-        let isPoweringHeater = (intensity > 0.1) || (heaterActive && solarBattery > 0);
-
-        if (isPoweringHeater) {
-            // Drain battery ONLY if it's night and the heater is ON
-            if (intensity <= 0.1 && heaterActive) {
-                solarBattery = Math.max(0, solarBattery - 0.05); 
-            }
-
-            // Create Steam & Water
-            if (Math.random() < 0.15) {
-                evaporationParticles.push({ x: recoveryBed.x + 20 + Math.random()*(recoveryBed.w-40), y: recoveryBed.y, life: 1 });
-            }
-            if (Math.random() < 0.06) {
-                waterDrops.push({ x: glass.startX + 15, y: glass.startY + 8, state: 'sliding' });
-            }
-        }
-
-        // --- UI Panel
-        ctx.fillStyle = '#263238';
-        ctx.fillText(`Heater Mode: ${heaterActive ? "ON (Manual)" : "OFF"}`, 835, 135);--
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.95)'; ctx.fillRect(820, 20, 260, 160);
+        // UI Panel in-canvas
         ctx.fillStyle = 'rgba(255, 255, 255, 0.95)'; ctx.fillRect(820, 20, 260, 160);
         ctx.strokeStyle = '#16a085'; ctx.lineWidth = 2; ctx.strokeRect(820, 20, 260, 160);
         ctx.fillStyle = '#263238'; ctx.font = 'bold 15px "Times New Roman"';
@@ -337,17 +305,9 @@
         ctx.fillStyle = '#16a085';
         ctx.fillText(`Oasis Status: ${recoveryProgress > 0.8 ? 'RESTORED' : 'ACTIVE'}`, 835, 155);
 
-       // --- 1. SPAWN (The Only Faucet) ---
-        if (intensity > 0.1 || solarBattery > 20) {
-            if (Math.random() < 0.15) {
-                evaporationParticles.push({ x: recoveryBed.x + 20 + Math.random()*(recoveryBed.w-40), y: recoveryBed.y, life: 1 });
-            }
-            if (Math.random() < 0.06) {
-                waterDrops.push({ x: glass.startX + 15, y: glass.startY + 8, state: 'sliding' });
-            }
+        if ((intensity > 0.1 || solarBattery > 20) && Math.random() < 0.15) {
+            evaporationParticles.push({ x: recoveryBed.x + 20 + Math.random()*(recoveryBed.w-40), y: recoveryBed.y, life: 1 });
         }
-
-        // --- 2. ANIMATE STEAM ---
         evaporationParticles.forEach((p, i) => {
             p.y -= 1.2; p.life -= 0.008;
             ctx.fillStyle = `rgba(255,255,255,${p.life * 0.6})`;
@@ -355,19 +315,17 @@
             if(p.life <= 0) evaporationParticles.splice(i, 1);
         });
 
-        // --- 3. ANIMATE WATER DROPS (Slower Version) ---
-        waterDrops.forEach((d, i) => {
-            if (d.state === 'sliding') { 
-                d.x += 1.2; // Reduced from 2.2 (Slower slide)
-                d.y += 0.3; // Reduced from 0.6 (Shallower angle)
-                if (d.x >= glass.endX - 10) d.state = 'falling'; 
-            } else { 
-                d.y += 3.5; // Reduced from 5.5 (Slower fall)
-                if (d.y >= collector.y + collector.h - 12) { 
-                    collector.level = Math.min(100, collector.level + 0.85); 
-                    waterDrops.splice(i, 1); 
-                } 
+        if ((intensity > 0.1 || solarBattery > 20)) {
+        if (Math.random() < 0.15) {
+        evaporationParticles.push({ x: recoveryBed.x + 20 + Math.random()*(recoveryBed.w-40), y: recoveryBed.y, life: 1 });
+        }
+        if (Math.random() < 0.06) {
+        waterDrops.push({ x: glass.startX + 15, y: glass.startY + 8, state: 'sliding' });
             }
+        }
+        waterDrops.forEach((d, i) => {
+            if (d.state === 'sliding') { d.x += 2.2; d.y += 0.6; if (d.x >= glass.endX - 10) d.state = 'falling'; }
+            else { d.y += 5.5; if (d.y >= collector.y + collector.h - 12) { collector.level = Math.min(100, collector.level + 0.85); waterDrops.splice(i, 1); } }
             ctx.fillStyle = '#03A9F4'; ctx.beginPath(); ctx.arc(d.x, d.y, 3.5, 0, Math.PI*2); ctx.fill();
         });
 
