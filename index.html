@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>E-STEAM SIMULATION</title>
+    <style>
+        body { 
+            margin: 0; background: #000000; font-family: 'Times New Roman', Times, serif; 
+            display: flex; flex-direction: column; align-items: center; 
+            justify-content: center; height: 100vh; overflow: hidden; 
+        }
+        .ui-panel { 
+            margin-bottom: 15px; padding: 15px; background: rgba(255,255,255,0.95); 
+            border-radius: 8px; width: 1070px; display: flex; 
+            justify-content: space-between; align-items: center; z-index: 10; 
+            border-bottom: 4px solid #16a085;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        canvas { border-radius: 4px; box-shadow: 0 0 50px rgba(22, 160, 133, 0.2); cursor: help; }
+        .control-group { display: flex; flex-direction: column; gap: 8px; }
+        .stats { font-family: 'Times New Roman', serif; font-size: 14px; color: #2c3e50; font-weight: bold; }
+        .uae-badge { background: #ef4444; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+        .solar-badge { background: #f1c40f; color: #2c3e50; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin-left: 5px;}
+        
+        button { padding: 8px 15px; cursor: pointer; color: white; border: none; border-radius: 4px; font-weight: bold; font-family: 'Times New Roman', serif; transition: 0.3s; }
+        button:hover { filter: brightness(1.2); }
+        #pauseBtn { background: #34495e; }
+        #harvestBtn { background: #27ae60; display: none; animation: pulse 1.5s infinite; }
+        
+        #tooltip { 
+            position: absolute; background: rgba(10, 20, 20, 0.95); color: #e0f7fa; 
+            padding: 12px; border-radius: 6px; font-size: 13px; width: 220px; 
+            pointer-events: none; display: none; border: 1px solid #16a085; 
+            z-index: 1000; line-height: 1.5; font-family: 'Times New Roman', serif;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        }
+    </style>
+</head>
+<body>
+    <div id="tooltip"></div>
+    <div class="ui-panel">
+        <div class="control-group">
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <label style="font-weight: bold; color: #2c3e50;">🕒 <span id="timeLabel">12:00 PM</span></label>
+                <input type="range" id="timeSlider" min="0" max="1440" value="720" style="width: 300px;">
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <button id="pauseBtn">⏸ Pause Irrigation</button>
+                <button id="harvestBtn">🌿 Harvest Gourmet Crops</button>
+                <div class="stats">
+                    TEMP: <span id="tempLabel">42</span>°C 
+                    <span class="uae-badge">UAE CLIMATE</span>
+                    <span class="solar-badge">SOLAR STORAGE: <span id="batteryLabel">0</span>%</span>
+                </div>
+            </div>
+        </div>
+        <div style="text-align: right;">
+            <h2 style="margin:0; color: #16a085; letter-spacing: 1px; font-weight: normal;">E-STEAM SIMULATION</h2>
+            <p style="margin:0; font-size: 0.9em; color: #7f8c8d;">HALOPHYTE OASIS | SALINE SOLUTIONS</p>
+        </div>
+    </div>
+    <canvas id="simCanvas" width="1100" height="550"></canvas>
+
+<script>
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+    const timeSlider = document.getElementById('timeSlider');
+    const tooltip = document.getElementById('tooltip');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const harvestBtn = document.getElementById('harvestBtn');
+
+    const simBase = 530; 
+    const recoveryBed = { x: 280, y: 360, w: 260, h: simBase - 360 }; 
+    const glass = { startX: 280, startY: 190, endX: 540, endY: 260 }; // Condensation slope
+    const collector = { x: 540, y: 260, w: 70, h: 110, level: 25 };
+    const soilBed = { x: 720, y: 430, w: 300, h: simBase - 430 }; 
+    const solarPanel = { x: 70, y: 250, w: 130, h: 50 };
+
+    let waterDrops = [];
+    let evaporationParticles = [];
+    let irrigationActive = true;
+    let plantGrowth = 0;
+    let totalHarvests = 0;
+    let solarBattery = 15;
+
+    const hotspots = [
+        { x: 280, y: 360, w: 260, h: 120, label: "<b>Degraded Bed (Healing):</b> Halophytes pull salt out of this flat sandy ground. Notice how it gradually turns rich brown as the simulation heals!" },
+        { x: 280, y: 160, w: 260, h: 100, label: "<b>Enclosed Glass House:</b> A proper solar still. Seawater applied to the ground evaporates, leaving salt. Vapour rises to the condensation glass." },
+        { x: 540, y: 260, w: 70, h: 110, label: "<b>Freshwater Buffer:</b> Collected distilled water ready for the herb island." },
+        { x: 720, y: 420, w: 300, h: 60, label: "<b>Restored Island:</b> High-value herbs grown in desalinated water on permanent rich ground." },
+        { x: 50, y: 250, w: 130, h: 70, label: "<b>Solar Thermal Array:</b> Elevated tripod base gathers max energy, feeding heat into the recovery system." }
+    ];
+
+    canvas.onmousemove = (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+        let active = false;
+        hotspots.forEach(h => {
+            if(mx > h.x && mx < h.x + h.w && my > h.y && my < h.y + h.h) {
+                tooltip.style.display = 'block';
+                let tx = e.pageX + 15; let ty = e.pageY + 15;
+                if (tx + 240 > window.innerWidth) tx = e.pageX - 240;
+                if (ty + 150 > window.innerHeight) ty = e.pageY - 150;
+                tooltip.style.left = tx + 'px'; tooltip.style.top = ty + 'px';
+                tooltip.innerHTML = h.label; active = true;
+            }
+        });
+        if(!active) tooltip.style.display = 'none';
+    };
+
+    pauseBtn.onclick = () => {
+        irrigationActive = !irrigationActive;
+        pauseBtn.innerText = irrigationActive ? "⏸ Pause Irrigation" : "▶ Resume Irrigation";
+        pauseBtn.style.background = irrigationActive ? "#34495e" : "#e67e22";
+    };
+
+    harvestBtn.onclick = () => {
+        plantGrowth = 0; totalHarvests++;
+        harvestBtn.style.display = "none";
+    };
+
+    function drawSystemBase(x, y, w, h, ratio, isRecovery) {
+        // Correct Gradual Restoration Logic Reinstated
+        let r = 210 - (ratio * (210 - 78)); // Target brown R: 78
+        let g = 180 - (ratio * (180 - 52)); // Target brown G: 52
+        let b = 140 - (ratio * (140 - 46)); // Target brown B: 46
+        
+        ctx.save();
+        ctx.fillStyle = `rgb(${r},${g},${b})`;
+        ctx.shadowBlur = 10; ctx.shadowColor = 'rgba(0,0,0,0.3)';
+        
+        ctx.beginPath();
+        // Ground sits flat on base
+        ctx.moveTo(x, simBase); 
+        ctx.lineTo(x, y); // Straight up
+        ctx.quadraticCurveTo(x + w/2, y-15, x + w, y); // Keep soft top for ref images
+        ctx.lineTo(x+w, simBase);
+        ctx.closePath(); ctx.fill();
+        ctx.restore();
+
+        // Texturing (Salt specks disappear as ground heals)
+        if (isRecovery && ratio < 0.95) {
+            ctx.fillStyle = `rgba(100, 70, 40, ${0.4 - ratio*0.3})`;
+            for(let i=0; i<60; i++) {
+                ctx.beginPath(); ctx.arc(x + (i*17)%w, y + 5 + (i*19)%h, 1.2, 0, Math.PI*2); ctx.fill();
+            }
+            ctx.fillStyle = "rgba(255,255,255," + (0.5 - ratio*0.4) + ")"; // Salt gradually fades
+            for(let i=0; i<30; i++) {
+                ctx.beginPath(); ctx.arc(recoveryBed.x + (i*9)%recoveryBed.w, recoveryBed.y + 10 + (i*11)%recoveryBed.h, 1.8, 0, Math.PI*2); ctx.fill();
+            }
+        }
+    }
+
+    function drawHalophyte(x, y, restored) {
+        ctx.save();
+        ctx.fillStyle = restored > 0.7 ? "#388E3C" : "#9CCC65";
+        ctx.shadowBlur = 5; ctx.shadowColor = 'rgba(0,0,0,0.2)';
+        ctx.beginPath(); ctx.moveTo(x, y);
+        ctx.quadraticCurveTo(x-18, y-15, x-12, y-40);
+        ctx.quadraticCurveTo(x-5, y-20, x, y-30);
+        ctx.quadraticCurveTo(x+5, y-20, x+12, y-40);
+        ctx.quadraticCurveTo(x+18, y-15, x, y);
+        ctx.fill();
+        ctx.restore();
+    }
+
+    function drawPlant(x, y, growth) {
+        if(growth < 10) return;
+        let h = growth * 0.45;
+        ctx.fillStyle = "#4E342E"; ctx.fillRect(x-2, y - h, 4, h);
+        if(growth > 25) {
+            ctx.fillStyle = "#81C784"; ctx.beginPath(); ctx.ellipse(x-12, y-h*0.8, 14, 7, -0.4, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = "#4CAF50"; ctx.beginPath(); ctx.ellipse(x+10, y-h*0.7, 14, 7, 0.4, 0, Math.PI*2); ctx.fill();
+        }
+    }
+
+    function drawSolar(x, y, intensity) {
+        // Subtle connection
+        ctx.strokeStyle = "rgba(184, 84, 27, 0.4)"; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(x + 65, y + 40); 
+        ctx.bezierCurveTo(x + 65, y + 120, recoveryBed.x - 30, recoveryBed.y + 120, recoveryBed.x, recoveryBed.y + 60);
+        ctx.stroke();
+
+        ctx.fillStyle = "#37474F"; ctx.fillRect(x + 60, y + 20, 10, 50);
+        ctx.save();
+        ctx.translate(x + 65, y + 20);
+        ctx.rotate(Math.sin(intensity) * 0.1);
+        ctx.fillStyle = "#263238"; ctx.shadowBlur = 10; ctx.fillRect(-65, -15, 130, 35);
+        ctx.strokeStyle = "#455A64"; ctx.lineWidth = 1;
+        for(let i=-65; i<=65; i+=22) { ctx.beginPath(); ctx.moveTo(i, -15); ctx.lineTo(i, 20); ctx.stroke(); }
+        ctx.restore();
+        
+        // A structured Tripod base
+        ctx.strokeStyle = "#455A64"; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.moveTo(x + 65, y + 70); ctx.lineTo(x + 30, simBase); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x + 65, y + 70); ctx.lineTo(x + 100, simBase); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x + 65, y + 70); ctx.lineTo(x + 65, simBase); ctx.stroke();
+    }
+
+    function drawEnclosedGlassHouse() {
+        ctx.save();
+        
+        // Back Wall Glass (higher opacity to defined structure)
+        ctx.fillStyle = "rgba(255, 255, 255, 0.12)";
+        ctx.beginPath();
+        ctx.moveTo(glass.startX, simBase);
+        ctx.lineTo(glass.startX, glass.startY);
+        ctx.lineTo(glass.endX, glass.endY);
+        ctx.lineTo(glass.endX, simBase);
+        ctx.closePath(); ctx.fill();
+
+        // Right Side Wall (defines depth)
+        ctx.fillStyle = "rgba(255, 255, 255, 0.08)";
+        ctx.beginPath();
+        ctx.moveTo(glass.endX, simBase);
+        ctx.lineTo(glass.endX, glass.endY);
+        // angled depth to collector
+        ctx.quadraticCurveTo(glass.endX + 30, glass.endY + 15, collector.x + collector.w, collector.y); 
+        ctx.lineTo(collector.x + collector.w, simBase);
+        ctx.closePath(); ctx.fill();
+
+        // Main Front Condensation Slope (as requested visible)
+        ctx.beginPath(); ctx.moveTo(glass.startX, glass.startY); ctx.lineTo(glass.endX, glass.endY);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)'; ctx.lineWidth = 8; ctx.lineCap = "round"; ctx.stroke();
+        
+        // Front Vertical Edge
+        ctx.beginPath(); ctx.moveTo(glass.startX, glass.startY); ctx.lineTo(glass.startX, simBase);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)'; ctx.lineWidth = 2; ctx.stroke();
+
+        ctx.restore();
+    }
+
+    function draw() {
+        let totalMinutes = parseInt(timeSlider.value);
+        document.getElementById('timeLabel').innerText = `${Math.floor(totalMinutes/60)%12||12}:${(totalMinutes%60).toString().padStart(2,'0')} ${totalMinutes>=720?'PM':'AM'}`;
+        
+        let isDay = totalMinutes > 360 && totalMinutes < 1080;
+        let intensity = isDay ? Math.sin((totalMinutes - 360) / 720 * Math.PI) : 0;
+        let temp = 24 + (intensity * 22);
+        document.getElementById('tempLabel').innerText = Math.round(temp);
+
+        if (isDay) solarBattery = Math.min(100, solarBattery + (intensity * 0.07));
+        else if (solarBattery > 0 && collector.level < 40) solarBattery -= 0.02; 
+        document.getElementById('batteryLabel').innerText = Math.floor(solarBattery);
+
+        // SKY: soft Blue-Green Oasis tone
+        ctx.fillStyle = isDay ? '#D6EAF8' : '#0B132B';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Draw Frame Base (坐)
+        ctx.fillStyle = "#2c3e50";
+        ctx.fillRect(0, simBase, canvas.width, canvas.height - simBase);
+
+        // SUN logic restricted to frame top
+        let orbitAngle = ((totalMinutes - 720) / 720) * (Math.PI / 2);
+        let sunOrbitRad = 450;
+        let sunX = 550 + Math.sin(orbitAngle) * sunOrbitRad;
+        let sunY = simBase - 250 - Math.cos(orbitAngle) * sunOrbitRad; 
+        sunY = Math.max(100, sunY); // Prevent collision with base
+
+        if (isDay) {
+            // Reverted Sun Rays
+            ctx.strokeStyle = "rgba(255, 193, 7, " + (intensity * 0.4) + ")"; ctx.lineWidth = 3;
+            for(let i=0; i<8; i++) {
+                let ang = (i/8)*Math.PI*2;
+                ctx.beginPath(); ctx.moveTo(sunX + Math.cos(ang)*45, sunY + Math.sin(ang)*45);
+                ctx.lineTo(sunX + Math.cos(ang)*75, sunY + Math.sin(ang)*75); ctx.stroke();
+            }
+            ctx.fillStyle = "#FFC107"; ctx.beginPath(); ctx.arc(sunX, sunY, 38, 0, Math.PI * 2); ctx.fill();
+        } else {
+            ctx.fillStyle = "#CFD8DC"; ctx.beginPath(); ctx.arc(sunX, sunY, 30, 0, Math.PI * 2); ctx.fill();
+        }
+
+        let recoveryProgress = Math.min(1, totalHarvests / 5); 
+        // Draw Ground and Restoration
+        drawSystemBase(recoveryBed.x, recoveryBed.y, recoveryBed.w, recoveryBed.h, recoveryProgress, true);
+        
+        // Draw Proper Enclosed Glass House
+        drawEnclosedGlassHouse();
+
+        ctx.fillStyle = '#5D4037'; ctx.fillRect(collector.x, collector.y, collector.w, collector.h);
+        ctx.fillStyle = '#4FC3F7';
+        let waterH = (collector.level / 100) * (collector.h - 15);
+        ctx.fillRect(collector.x + 8, (collector.y + collector.h - 8) - waterH, collector.w - 16, waterH);
+
+        // Draw Soil Bed (Permanent rich brown)
+        drawSystemBase(soilBed.x, soilBed.y, soilBed.w, soilBed.h, 1, false);
+        
+        drawSolar(solarPanel.x, solarPanel.y, intensity);
+
+        // Redraw plants using curvy functions
+        for(let i=0; i<5; i++) drawHalophyte(recoveryBed.x + 45 + (i*42), recoveryBed.y + 18, recoveryProgress);
+        for(let i=0; i<6; i++) drawPlant(soilBed.x + 45 + (i*42), soilBed.y + 18, plantGrowth);
+
+        // UI Panel in-canvas
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.95)'; ctx.fillRect(820, 20, 260, 160);
+        ctx.strokeStyle = '#16a085'; ctx.lineWidth = 2; ctx.strokeRect(820, 20, 260, 160);
+        ctx.fillStyle = '#263238'; ctx.font = 'bold 15px "Times New Roman"';
+        ctx.fillText("SYSTEM DIAGNOSTICS", 835, 48);
+        ctx.font = '14px "Times New Roman"';
+        ctx.fillText(`Soil Desalination: ${(recoveryProgress*100).toFixed(0)}%`, 835, 75);
+        ctx.fillText(`Solar Buffer: ${Math.floor(solarBattery)}%`, 835, 95);
+        ctx.fillText(`Gourmet Harvests: ${totalHarvests}`, 835, 115);
+        ctx.fillText(`Thermal State: ${((intensity > 0.1 || solarBattery > 25) ? "Optimal" : "Conserving")}`, 835, 135);
+        ctx.fillStyle = '#16a085';
+        ctx.fillText(`Oasis Status: ${recoveryProgress > 0.8 ? 'RESTORED' : 'ACTIVE'}`, 835, 155);
+
+        if ((intensity > 0.1 || solarBattery > 20) && Math.random() < 0.15) {
+            evaporationParticles.push({ x: recoveryBed.x + 20 + Math.random()*(recoveryBed.w-40), y: recoveryBed.y, life: 1 });
+        }
+        evaporationParticles.forEach((p, i) => {
+            p.y -= 1.2; p.life -= 0.008;
+            ctx.fillStyle = `rgba(255,255,255,${p.life * 0.6})`;
+            ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI*2); ctx.fill();
+            if(p.life <= 0) evaporationParticles.splice(i, 1);
+        });
+
+        if ((intensity > 0.1 || solarBattery > 20) && Math.random() < 0.06) {
+            waterDrops.push({ x: glass.startX + 15, y: glass.startY + 8, state: 'sliding' });
+        }
+        waterDrops.forEach((d, i) => {
+            if (d.state === 'sliding') { d.x += 2.2; d.y += 0.6; if (d.x >= glass.endX - 10) d.state = 'falling'; }
+            else { d.y += 5.5; if (d.y >= collector.y + collector.h - 12) { collector.level = Math.min(100, collector.level + 0.85); waterDrops.splice(i, 1); } }
+            ctx.fillStyle = '#03A9F4'; ctx.beginPath(); ctx.arc(d.x, d.y, 3.5, 0, Math.PI*2); ctx.fill();
+        });
+
+        if (irrigationActive && collector.level > 5 && plantGrowth < 100) {
+            collector.level -= 0.035; plantGrowth += 0.045;
+            ctx.strokeStyle = "rgba(3, 169, 244, 0.6)"; ctx.lineWidth = 2; ctx.setLineDash([6, 4]);
+            ctx.beginPath(); ctx.moveTo(collector.x + 35, collector.y + 110); 
+            ctx.bezierCurveTo(collector.x + 35, soilBed.y + 30, soilBed.x - 20, soilBed.y + 20, soilBed.x, soilBed.y + 25);
+            ctx.lineTo(soilBed.x + 300, soilBed.y + 25); ctx.stroke(); ctx.setLineDash([]);
+        }
+
+        if (plantGrowth >= 100) { plantGrowth = 100; harvestBtn.style.display = "block"; }
+        requestAnimationFrame(draw);
+    }
+    draw();
+</script>
+</body>
+</html>
