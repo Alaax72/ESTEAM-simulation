@@ -314,6 +314,15 @@
             ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI*2); ctx.fill();
             if(p.life <= 0) evaporationParticles.splice(i, 1);
         });
+        // 1. SPAWN NEW PARTICLES (Only if sun is up or battery has juice)
+        if (intensity > 0.1 || solarBattery > 20) {
+            if (Math.random() < 0.15) {
+                evaporationParticles.push({ x: recoveryBed.x + 20 + Math.random()*(recoveryBed.w-40), y: recoveryBed.y, life: 1 });
+            }
+            if (Math.random() < 0.06) {
+                waterDrops.push({ x: glass.startX + 15, y: glass.startY + 8, state: 'sliding' });
+            }
+        }
 
         if ((intensity > 0.1 || solarBattery > 20)) {
         if (Math.random() < 0.15) {
